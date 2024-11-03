@@ -2,7 +2,6 @@ import configparser
 import json
 import sqlalchemy as sq
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
-from tabulate import tabulate
 
 
 Base = declarative_base()
@@ -78,6 +77,24 @@ def insert_from_json(json_file, session):
 	session.commit()
 
 
+def get_shops(query, session): 
+	subq = session.query( 
+		Book.title, Shop.name, Sale.price, Sale.date_sale 
+	).select_from(Shop).\
+	join(Stock).\
+	join(Book).\
+	join(Publisher).\
+	join(Sale)
+
+	if query.isdigit(): 
+		q = subq.filter(Publisher.id == query).all()
+	else:
+		q = subq.filter(Publisher.name == query).all() 
+	
+	for title, name, price, date_sale in q: 
+		print(f"{title: <40} | {name: <10} | {price: <8} | {date_sale.strftime('%d-%m-%Y')}") 
+
+
 if __name__ == '__main__':
 	config = configparser.ConfigParser()
 	config.read('settings.ini')
@@ -96,15 +113,7 @@ if __name__ == '__main__':
 	session = Session()
 
 	insert_from_json(input_file, session)
-	pb_name = input("Введите имя издателя: ")
-	books = session.query(Book).join(Stock).join(Shop).join(Sale).join(Publisher).filter(Publisher.name.like(pb_name))
-
-	output = []
-	for bk in books:
-		for sk in bk.stocks:
-			for sl in sk.sales:
-				output.append([bk.title, sk.shop.name, sl.price, sl.date_sale])
-	
-	print(tabulate(output, tablefmt='orgtbl'))
+	query = input("Введите имя или id издателя: ")
+	get_shops(query, session)
 
 
